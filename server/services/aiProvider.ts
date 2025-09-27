@@ -1072,9 +1072,9 @@ class GeminiProvider implements AIProvider {
     try {
       console.log(`📊 Gemini processing: ${mimeType} document with ${options.extractionMode} mode`);
       
-      // Use Gemini 1.5 Pro for advanced document understanding
+      // Use Gemini Pro for advanced document understanding
       const model = geminiInstance.getGenerativeModel({ 
-        model: "gemini-1.5-pro",
+        model: "gemini-pro",
         generationConfig: {
           temperature: 0.1, // Low temperature for precise extraction
           maxOutputTokens: 8192
@@ -1333,14 +1333,14 @@ Analyze the image and detect ALL visible objects, people, text, and elements wit
       
       // For VLM processing, use basic extraction approach
       // For now, fall back to automatic schema generation until VLM engine supports Gemini
-      const model = geminiInstance.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = geminiInstance.getGenerativeModel({ model: "gemini-pro" });
       const contents = await this.prepareDocumentContents(fileBuffer, mimeType);
       const result = await this.performAutomaticSchemaGeneration(model, contents, options);
       
       return this.validateAndNormalizeResult(result, options);
     } catch (error) {
       console.error('🔄 VLM layout-aware extraction failed, falling back to automatic schema generation:', error);
-      const model = geminiInstance.getGenerativeModel({ model: "gemini-1.5-pro" });
+      const model = geminiInstance.getGenerativeModel({ model: "gemini-pro" });
       const contents = await this.prepareDocumentContents(fileBuffer, mimeType);
       return await this.performAutomaticSchemaGeneration(model, contents, options);
     }
@@ -1571,7 +1571,7 @@ Perform comprehensive analysis and extract ALL content types with maximum detail
     mimeType: string,
     options: ExtractionOptions
   ): Promise<ExtractionResult> {
-    const model = geminiInstance.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = geminiInstance.getGenerativeModel({ model: "gemini-pro" });
     const systemPrompt = this.buildSystemPrompt(options);
 
     let contents;
