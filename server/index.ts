@@ -37,6 +37,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Validate configuration before starting the server
+  const { configValidator } = await import("./services/configValidator");
+  const validationResult = await configValidator.validateConfiguration();
+  configValidator.printValidationReport(validationResult);
+
+  // Continue with server startup even if there are warnings (but not critical errors)
+  if (!validationResult.valid) {
+    console.error("❌ Critical configuration errors found. Please fix them before starting the server.");
+    process.exit(1);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

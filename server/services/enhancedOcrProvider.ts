@@ -71,7 +71,18 @@ export class EnhancedOCRProvider implements AIProvider {
         return result;
         
       } catch (pythonError) {
-        console.warn(`🔄 Python OCR service failed, falling back to OpenAI: ${pythonError}`);
+        const errorMsg = pythonError instanceof Error ? pythonError.message : String(pythonError);
+        console.warn(`🔄 Python OCR service failed, falling back to OpenAI: ${errorMsg}`);
+        
+        // Check if we have API keys for fallback
+        const effectiveApiKey = apiKey || options.openaiApiKey || process.env.OPENAI_API_KEY;
+        if (!effectiveApiKey) {
+          throw new Error(
+            `Python OCR service unavailable and no OpenAI API key provided for fallback. ` +
+            `Please either start the Python OCR service or provide an OpenAI API key. ` +
+            `Python error: ${errorMsg}`
+          );
+        }
         
         // Fallback to OpenAI provider with enhanced prompting
         return await this.fallbackToOpenAI(filePath, options, apiKey);
@@ -126,6 +137,23 @@ export class EnhancedOCRProvider implements AIProvider {
 
   private async callPythonOCR(filePath: string): Promise<PythonOCRResponse> {
     try {
+      // First, check if Python service is available with better error handling
+      try {
+        const healthCheckPromise = fetch(`${this.pythonOcrUrl}/health`, { 
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        const healthResponse = await healthCheckPromise;
+        if (!healthResponse.ok) {
+          throw new Error(`Python OCR service health check failed: ${healthResponse.status}`);
+        }
+        console.log(`✅ Python OCR service is available at ${this.pythonOcrUrl}`);
+      } catch (healthError) {
+        const errorMsg = healthError instanceof Error ? healthError.message : String(healthError);
+        console.warn(`⚠️ Python OCR service not available: ${errorMsg}`);
+        console.warn(`💡 This is expected if the Python service hasn't been started. Falling back to OpenAI.`);
+        throw new Error(`Python OCR service unavailable: ${errorMsg}`);
+      }
+      
       // Read file and prepare for upload
       const fileBuffer = fs.readFileSync(filePath);
       
@@ -141,17 +169,6 @@ export class EnhancedOCRProvider implements AIProvider {
         filename: filename,
         contentType: contentType
       });
-
-      // First, check if Python service is available
-      try {
-        const healthResponse = await fetch(`${this.pythonOcrUrl}/health`);
-        if (!healthResponse.ok) {
-          throw new Error(`Python OCR service health check failed: ${healthResponse.status}`);
-        }
-      } catch (healthError) {
-        console.warn(`Python OCR service not available, will use fallback: ${healthError}`);
-        throw new Error(`Python OCR service unavailable: ${healthError}`);
-      }
 
       // Make request to Python OCR service
       const response = await fetch(`${this.pythonOcrUrl}/extract`, {
@@ -392,7 +409,8 @@ export class EnhancedOCRProvider implements AIProvider {
       lines,
       level: isHeading ? this.getHeadingLevel(allText) : undefined,
       confidence: 0.9,
-      semanticLabel: isHeading ? "heading" : "paragraph"
+      semanticLabel: isHeading ? "heading" : "paragraph",
+      textDirection: "ltr"
     };
   }
 
